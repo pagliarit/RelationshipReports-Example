@@ -1,0 +1,72 @@
+--Written by Tim Pagliari
+--Returns relationship details per client.
+--
+--
+
+select 
+       p.id GK_ID,
+	   p.Local_ID LOCAL_ID,
+	   p.last_name,
+       p.first_name,
+	   p.resident_number,
+       p.individualage age,
+	   p.mail_zip_code mailing_zipcode,
+	   p.resident_zip resident_zipcode,
+	   pf.description Consumer_Funding_Source,
+	   MAX(CASE  WHEN r.description = 'Intake Navigator' THEN r.contact_lfm_name ELSE NULL END) AS 'Intake_Nav',--breaks the various relatioinships into their own headers
+	   MAX(CASE WHEN r.description = 'Support Administrator' THEN r.contact_lfm_name ELSE NULL END) AS 'SA', --breaks the various relatioinships into their own headers
+       MAX(CASE WHEN r.description = 'Support Administrator Float' THEN r.contact_lfm_name ELSE NULL END) AS 'SA Float',--breaks the various relatioinships into their own headers
+	   MAX(CASE  WHEN r.description = 'SA Eligibility' THEN r.contact_lfm_name ELSE NULL END) AS 'SA Eligibility',--breaks the various relatioinships into their own headers
+	   MAX(CASE WHEN r.description = 'SA Information & Referral' THEN r.contact_lfm_name ELSE NULL END) AS 'SA IR',--breaks the various relatioinships into their own headers
+	   MAX(CASE WHEN r.description = 'SA Housing & Assessment' THEN r.contact_lfm_name ELSE NULL END) AS 'SA HAT',--breaks the various relatioinships into their own headers
+	   MAX(CASE  WHEN r.description = 'SA EMPLOYMENT PLANNING' THEN r.contact_lfm_name ELSE NULL END) AS 'EPSA',--breaks the various relatioinships into their own headers
+	   MAX(CASE  WHEN r.description = 'SA Transition' THEN r.contact_lfm_name ELSE NULL END) AS 'SA Transition',--breaks the various relatioinships into their own headersMAX(CASE  WHEN r.description = 'Waiver Coordinator' THEN r.contact_lfm_name ELSE NULL END) AS 'Waiver Coordinator'--breaks the various relatioinships into their own headers
+	   
+	   --the bottom one here is ONLY for waiver coordinator rematch
+	   MAX(CASE  WHEN WCTable.WC_Description = 'Waiver Coordinator' THEN WCTABLE.WC_LFM ELSE NULL END) AS 'Waiver Coordinator'--breaks the various relatioinships into their own headersMAX(CASE  WHEN r.description = 'Waiver Coordinator' THEN r.contact_lfm_name ELSE NULL END) AS 'Waiver Coordinator'--breaks the various relatioinships into their own headers
+
+	   --r.contact_lfm_name contact_name,
+       --r.description relationship_type,
+       --i.itemname Transition_Form_Name
+from 
+       [derby].[gkdata].dbo.vw_consumer_gkpeople p
+              left join [derby].[gkdata].dbo.tblgkcurrentrelationshipdesc r on r.id=p.id
+                     --and r.type_id in(221) 
+				left join psi_gk..dba.consumer_info CI on CI.id = p.id
+				left join [derby].[GKData].[dbo].tblGKConsumerCurrentPrimaryFunding PF on PF.id = p.id
+				--left join psi_gk..dba.person_type pt on pt.id=p.id and pt.type_id in(263,264)    --get Family Supports class
+					--and (pt.end_date is null or pt.end_date>getdate())
+
+				left join (
+				select id SA_ID, CONTACT_ID WC_ID, contact_LFM_NAME WC_LFM, description WC_Description
+				from [derby].[gkdata].dbo.tblgkcurrentrelationshipdesc wc
+				where description = 'Waiver Coordinator'
+				) WCTable on WCTABLE.SA_ID = r.contact_id
+where 
+			--.contact_last_name in ('Madison') and
+				r.contact_status_code = 'A'
+			and r.description IN ('Support Administrator',
+			'SA Mixed Caseload',
+			'SA MANAGER',
+			'SA Lives Alone',
+			'Support Administrator Float',
+			'SA Eligibility',
+			'SA Information & Referral',
+			'SA Housing & Assessment',
+			'SA EMPLOYMENT PLANNING',
+			'SA Transition',
+			'SA Employment Planning',
+			'SA Congregate',
+			'SA Bilingual',
+			'Support Administrator Float Triage')
+group by
+	   p.id,
+	   p.Local_ID,
+       p.last_name,
+       p.first_name,
+	   p.resident_number,
+       p.individualage,
+	   p.mail_zip_code,
+	   p.resident_zip,
+	   pf.description
+--der by p.individualage desc
